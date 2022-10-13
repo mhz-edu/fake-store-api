@@ -50,7 +50,7 @@ mongoose
   .connect(dbUrl, { useNewUrlParser: true })
   .then(() => {
     app.listen(port, () => {
-      console.log("connect");
+      console.log(`Ready on http://localhost:${port}`);
     });
   })
   .catch((err) => {

@@ -22,6 +22,14 @@ module.exports.getProduct = (req, res) => {
   })
     .select(["-_id"])
     .then((product) => {
+      if (product == null) {
+        res.status(400);
+        res.json({
+          status: "error",
+          message: "cannot find product",
+        });
+        return;
+      }
       res.json(product);
     })
     .catch((err) => console.log(err));
@@ -78,7 +86,6 @@ module.exports.addProduct = (req, res) => {
           .save()
           .then((product) => res.json(product))
           .catch((err) => console.log(err));
-        res.json(product);
       });
   }
 };
@@ -90,31 +97,50 @@ module.exports.editProduct = (req, res) => {
       message: "something went wrong! check your sent data",
     });
   } else {
-    res.json({
-      id: parseInt(req.params.id),
+    const updatedProduct = {
+      // id: parseInt(req.params.id),
       title: req.body.title,
       price: req.body.price,
       description: req.body.description,
       image: req.body.image,
       category: req.body.category,
-    });
+    };
+    Product.findOneAndUpdate({ id: req.params.id }, updatedProduct)
+      .then((product) => {
+        if (product == null) {
+          res.status(400);
+          res.json({
+            status: "error",
+            message: "cannot find product",
+          });
+          return;
+        }
+        res.json(product);
+      })
+      .catch((err) => console.log(err));
   }
 };
 
-module.exports.deleteProduct = (req, res) => {
+module.exports.deleteProduct = async (req, res) => {
   if (req.params.id == null) {
     res.json({
       status: "error",
       message: "cart id should be provided",
     });
   } else {
-    Product.findOne({
+    const product = await Product.findOne({
       id: req.params.id,
     })
       .select(["-_id"])
-      .then((product) => {
-        res.json(product);
-      })
       .catch((err) => console.log(err));
+    if (product == null) {
+      res.status(400);
+      res.json({
+        status: "error",
+        message: "cannot find product",
+      });
+      return;
+    }
+    res.json(product);
   }
 };
