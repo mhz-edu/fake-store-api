@@ -38,16 +38,16 @@ module.exports.addUser = async (req, res) => {
   } else {
     let userCount = 0;
 
-    User.findOne({ email: req.body.email }).then((user) => {
-      if (!user) return;
-      res.status(400);
-      res.json({ status: "error", message: "User already registered" });
-    });
-    User.findOne({ phone: req.body.phone }).then((user) => {
-      if (!user) return;
-      res.status(400);
-      res.json({ status: "error", message: "User already registered" });
-    });
+    // User.findOne({ email: req.body.email }).then((user) => {
+    //   if (!user) return;
+    //   res.status(400);
+    //   res.json({ status: "error", message: "User already registered" });
+    // });
+    // User.findOne({ phone: req.body.phone }).then((user) => {
+    //   if (!user) return;
+    //   res.status(400);
+    //   res.json({ status: "error", message: "User already registered" });
+    // });
     User.find()
       .countDocuments(function (err, count) {
         userCount = count;
