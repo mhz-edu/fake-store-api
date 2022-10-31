@@ -3,8 +3,8 @@ const router = express.Router()
 const cart = require('../controller/cart')
 
 router.get('/',cart.getAllCarts)
+router.get('/user/get',cart.getCartsbyUserid)
 router.get('/:id',cart.getSingleCart)
-router.get('/user/:userid',cart.getCartsbyUserid)
 
 router.post('/',cart.addCart)
 //router.post('/:id',cart.addtoCart)
