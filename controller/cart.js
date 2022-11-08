@@ -23,7 +23,6 @@ module.exports.getAllCarts = (req, res) => {
 };
 
 module.exports.getCartsbyUserid = async (req, res) => {
-  console.log('req, res: ', req, res);
   try {
     const token = req.header("Authorization").replace("Bearer ", "");
     const decoded = jwt.verify(token, "secret_key");
@@ -34,27 +33,20 @@ module.exports.getCartsbyUserid = async (req, res) => {
 
     // If user not found, throw error
     if (!user) {
-      throw new Error();
+      throw new Error("No user found");
     }
-    console.log(user);
-    res.json(user);
-    const userId = req.params.userid;
+    const userId = decoded._id;
     const startDate = req.query.startdate || new Date("1970-1-1");
     const endDate = req.query.enddate || new Date();
-
-    console.log(startDate, endDate);
+    Cart.find({ userId })
+      .select("-_id -products._id -userId")
+      .then((carts) => {
+        res.json(carts);
+      })
+      .catch((err) => console.log(err));
   } catch (err) {
-    res.json(err);
+    res.status(400).json(err);
   }
-  // Cart.find({
-  //   userId,
-  //   date: { $gte: new Date(startDate), $lt: new Date(endDate) },
-  // })
-  //   .select("-_id -products._id")
-  //   .then((carts) => {
-  //     res.json(carts);
-  //   })
-  //   .catch((err) => console.log(err));
 };
 
 module.exports.getSingleCart = (req, res) => {
@@ -67,35 +59,55 @@ module.exports.getSingleCart = (req, res) => {
     .catch((err) => console.log(err));
 };
 
-module.exports.addCart = (req, res) => {
-  if (typeof req.body == undefined) {
-    res.json({
-      status: "error",
-      message: "data is undefined",
+module.exports.addCart = async (req, res) => {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, "secret_key");
+    const user = await User.findOne({
+      _id: decoded._id,
+      // "tokens.token": token,
     });
-  } else {
-    let cartCount = 0;
-    Cart.find()
-      .countDocuments(function (err, count) {
-        cartCount = count;
-      })
-      .then(() => {
-        const cart = {
-          id: cartCount + 1,
-          userId: req.body.userId,
-          date: req.body.date,
-          products: req.body.products,
-        };
-        const cartInstance = new Cart(cart);
-        cartInstance
-          .save()
-          .then((cart) => res.json(cart))
-          .catch((err) => console.log(err));
+    // If user not found, throw error
+    if (!user) {
+      throw new Error({ error: "No user found" });
+    }
+    const userId = decoded._id;
+    const date = req.query.date || new Date();
 
-        res.json(cart);
+    if (typeof req.body == undefined) {
+      res.json({
+        status: "error",
+        message: "data is undefined",
       });
-
-    res.json({ ...req.body, id: Cart.find().count() + 1 });
+    } else {
+      let cartCount = 0;
+      Cart.find({
+        userId,
+      })
+        .then((carts) => {
+          const cart = {
+            id: carts.length + 1,
+            userId: userId,
+            date: date,
+            products: req.body.products || [],
+          };
+          if (carts.length > 0) {
+            res.json([...carts].pop());
+            return;
+          }
+          const cartInstance = new Cart(cart);
+          cartInstance
+            .save()
+            .then((cart) => {
+              res.json(cart);
+            })
+            .catch((err) => res.status(400).json(err));
+        })
+        .catch((err) => console.log(err));
+    }
+    // res.json({ ...req.body, id: Cart.find().count() + 1 });
+  } catch (err) {
+    res.status(400).json(err);
   }
 };
 
