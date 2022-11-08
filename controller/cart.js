@@ -1,6 +1,7 @@
 const Cart = require("../model/cart");
 const jwt = require("jsonwebtoken");
 const User = require("../model/user");
+const Product = require("../model/product");
 
 module.exports.getAllCarts = (req, res) => {
   const limit = Number(req.query.limit) || 0;
@@ -49,14 +50,56 @@ module.exports.getCartsbyUserid = async (req, res) => {
   }
 };
 
-module.exports.getSingleCart = (req, res) => {
-  const id = req.params.id;
-  Cart.findOne({
-    id,
-  })
-    .select("-_id -products._id")
-    .then((cart) => res.json(cart))
-    .catch((err) => console.log(err));
+module.exports.getSingleCart = async (req, res) => {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, "secret_key");
+    const user = await User.findOne({
+      _id: decoded._id,
+      // "tokens.token": token,
+    });
+
+    // If user not found, throw error
+    if (!user) {
+      throw new Error("No user found");
+    }
+    const userId = decoded._id;
+    const cart = await Cart.findOne({
+      userId,
+    })
+      .select("-_id -products._id")
+      .catch((err) => console.log(err));
+    const products = await Product.find({
+      id: { $in: cart.products.map(({ productId }) => productId) },
+    }).select("-_id -__v");
+    const proxyProducts = [];
+    cart.products.forEach((val) => {
+      proxyProducts.push({
+        productId: val.productId,
+        quantity: val.quantity,
+      });
+    });
+    const newProducts = products.map((val) => {
+      const { id, title, price, description, image } = val;
+      return {
+        id,
+        title,
+        price,
+        description,
+        image,
+        quantity: proxyProducts.find((item) => val.id === item.productId)
+          .quantity,
+      };
+    });
+    res.json({
+      id: cart.id,
+      date: cart.date,
+      userId: cart.userId,
+      products: newProducts,
+    });
+  } catch (err) {
+    res.status(401).json(err);
+  }
 };
 
 module.exports.addCart = async (req, res) => {
@@ -75,7 +118,7 @@ module.exports.addCart = async (req, res) => {
     const date = req.query.date || new Date();
 
     if (typeof req.body == undefined) {
-      res.json({
+      res.status(400).json({
         status: "error",
         message: "data is undefined",
       });
@@ -111,19 +154,38 @@ module.exports.addCart = async (req, res) => {
   }
 };
 
-module.exports.editCart = (req, res) => {
-  if (typeof req.body == undefined || req.params.id == null) {
-    res.json({
-      status: "error",
-      message: "something went wrong! check your sent data",
+module.exports.editCart = async (req, res) => {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, "secret_key");
+    const user = await User.findOne({
+      _id: decoded._id,
+      // "tokens.token": token,
     });
-  } else {
-    res.json({
-      id: parseInt(req.params.id),
-      userId: req.body.userId,
-      date: req.body.date,
-      products: req.body.products,
-    });
+    // If user not found, throw error
+    if (!user) {
+      throw new Error({ error: "No user found" });
+    }
+    const userId = decoded._id;
+    if (typeof req.body == undefined) {
+      res.status(400).json({
+        status: "error",
+        message: "something went wrong! check your sent data",
+      });
+    } else {
+      Cart.findOneAndUpdate(
+        { userId },
+        { products: req.body.products },
+        { new: true }
+      )
+
+        .then((cart) => {
+          res.json(cart);
+        })
+        .catch((err) => res.status(400).json(err));
+    }
+  } catch (err) {
+    res.status(401).json(err);
   }
 };
 
