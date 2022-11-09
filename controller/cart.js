@@ -1,7 +1,6 @@
 const Cart = require("../model/cart");
 const jwt = require("jsonwebtoken");
 const User = require("../model/user");
-const Product = require("../model/product");
 
 module.exports.getAllCarts = (req, res) => {
   const limit = Number(req.query.limit) || 0;
@@ -64,39 +63,17 @@ module.exports.getSingleCart = async (req, res) => {
       throw new Error("No user found");
     }
     const userId = decoded._id;
-    const cart = await Cart.findOne({
-      userId,
-    })
-      .select("-_id -products._id")
+    const cart = await Cart.aggregate()
+      .lookup({
+        from: "products",
+        localField: "products.productId",
+        foreignField: "id",
+        as: "lineItems",
+      })
+      .match({ userId })
       .catch((err) => console.log(err));
-    const products = await Product.find({
-      id: { $in: cart.products.map(({ productId }) => productId) },
-    }).select("-_id -__v");
-    const proxyProducts = [];
-    cart.products.forEach((val) => {
-      proxyProducts.push({
-        productId: val.productId,
-        quantity: val.quantity,
-      });
-    });
-    const newProducts = products.map((val) => {
-      const { id, title, price, description, image } = val;
-      return {
-        id,
-        title,
-        price,
-        description,
-        image,
-        quantity: proxyProducts.find((item) => val.id === item.productId)
-          .quantity,
-      };
-    });
-    res.json({
-      id: cart.id,
-      date: cart.date,
-      userId: cart.userId,
-      products: newProducts,
-    });
+
+    res.json(cart);
   } catch (err) {
     res.status(401).json(err);
   }
