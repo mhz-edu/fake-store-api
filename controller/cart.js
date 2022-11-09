@@ -166,18 +166,23 @@ module.exports.editCart = async (req, res) => {
   }
 };
 
-module.exports.deleteCart = (req, res) => {
-  if (req.params.id == null) {
-    res.json({
-      status: "error",
-      message: "cart id should be provided",
+module.exports.deleteCart = async (req, res) => {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, "secret_key");
+    const user = await User.findOne({
+      _id: decoded._id,
+      // "tokens.token": token,
     });
-  } else {
-    Cart.findOne({ id: req.params.id })
-      .select("-_id -products._id")
-      .then((cart) => {
-        res.json(cart);
-      })
-      .catch((err) => console.log(err));
+    // If user not found, throw error
+    if (!user) {
+      throw new Error({ error: "No user found" });
+    }
+    const userId = decoded._id;
+    Cart.findOneAndDelete({ userId }).then(() => {
+      res.json("Cart Deleted!");
+    });
+  } catch (err) {
+    res.status(401).json(err);
   }
 };
