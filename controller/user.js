@@ -1,4 +1,5 @@
 const User = require("../model/user");
+const jwt = require("jsonwebtoken");
 
 module.exports.getAllUser = (req, res) => {
   const limit = Number(req.query.limit) || 0;
@@ -29,6 +30,27 @@ module.exports.getUser = (req, res) => {
     .catch((err) => console.log(err));
 };
 
+module.exports.getUserInfo = async (req, res) => {
+  try {
+    const token = req.header("Authorization").replace("Bearer ", "");
+    const decoded = jwt.verify(token, "secret_key");
+    const user = await User.findOne({
+      _id: decoded._id,
+      // "tokens.token": token,
+    });
+    // If user not found, throw error
+    if (!user) {
+      throw new Error({ error: "No user found" });
+    }
+    const userId = decoded._id;
+
+    const userInfo = await User.findById(userId).select("-_id -__v");
+    res.json(userInfo);
+  } catch (err) {
+    res.status(401).json(err);
+  }
+};
+
 module.exports.addUser = async (req, res) => {
   if (typeof req.body == undefined) {
     res.json({
@@ -38,21 +60,11 @@ module.exports.addUser = async (req, res) => {
   } else {
     let userCount = 0;
 
-    // User.findOne({ email: req.body.email }).then((user) => {
-    //   if (!user) return;
-    //   res.status(400);
-    //   res.json({ status: "error", message: "User already registered" });
-    // });
-    // User.findOne({ phone: req.body.phone }).then((user) => {
-    //   if (!user) return;
-    //   res.status(400);
-    //   res.json({ status: "error", message: "User already registered" });
-    // });
     User.find()
       .countDocuments(function (err, count) {
         userCount = count;
       })
-      .then(() => {
+      .then(() => { 
         const user = new User({
           id: userCount + 1,
           email: req.body.email,
@@ -73,11 +85,11 @@ module.exports.addUser = async (req, res) => {
             },
           },
           phone: req.body.phone,
+          isDeleted: false,
         });
         user
           .save()
           .then((user) => {
-            console.log(user);
             res.json(user);
           })
           .catch((error) => {
@@ -98,27 +110,29 @@ module.exports.editUser = (req, res) => {
       message: "something went wrong! check your sent data",
     });
   } else {
-    res.json({
-      id: parseInt(req.params.id),
-      email: req.body.email,
-      username: req.body.username,
-      password: req.body.password,
-      name: {
-        firstname: req.body.firstname,
-        lastname: req.body.lastname,
-      },
-      address: {
-        city: req.body.address.city,
-        street: req.body.address.street,
-        number: req.body.number,
-        zipcode: req.body.zipcode,
-        geolocation: {
-          lat: req.body.address.geolocation.lat,
-          long: req.body.address.geolocation.long,
+    User.findOneAndUpdate(
+      { id: req.params.id },
+      {
+        email: req.body.email,
+        username: req.body.username,
+        password: req.body.password,
+        name: {
+          firstname: req.body.name?.firstname,
+          lastname: req.body.name?.lastname,
         },
-      },
-      phone: req.body.phone,
-    });
+        address: {
+          city: req.body.address?.city ?? null,
+          street: req.body.address?.street ?? null,
+          number: req.body.number,
+          zipcode: req.body.zipcode,
+          geolocation: {
+            lat: req.body.address?.geolocation?.lat ?? null,
+            long: req.body.address?.geolocation?.long ?? null,
+          },
+        },
+        phone: req.body.phone,
+      }
+    );
   }
 };
 
@@ -129,7 +143,7 @@ module.exports.deleteUser = (req, res) => {
       message: "cart id should be provided",
     });
   } else {
-    User.findOne({ id: req.params.id })
+    User.findOneAndUpdate({ id: req.params.id }, { isDeleted: true })
       .select(["-_id"])
       .then((user) => {
         res.json(user);

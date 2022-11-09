@@ -14,6 +14,7 @@ const userSchema = new schema({
   username: {
     type: String,
     required: true,
+    unique: true,
   },
   password: {
     type: String,
@@ -43,6 +44,7 @@ const userSchema = new schema({
     type: String,
     unique: true,
   },
+  isDeleted: { type: Boolean },
 });
 
 module.exports = mongoose.model("user", userSchema);
