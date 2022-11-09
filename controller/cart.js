@@ -71,6 +71,13 @@ module.exports.getSingleCart = async (req, res) => {
         as: "lineItems",
       })
       .match({ userId })
+      .project({
+        __v: 0,
+        _id: 0,
+        "products._id": 0,
+        "lineItems._id": 0,
+        "lineItems.__v": 0,
+      })
       .catch((err) => console.log(err));
 
     res.json(cart);
