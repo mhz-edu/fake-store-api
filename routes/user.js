@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const user = require("../controller/user");
+const { authenticate } = require("../middleware/auth");
 
 router.get("/", user.getAllUser);
-router.get("/info", user.getUserInfo);
+router.get("/info", authenticate, user.getUserInfo);
 router.get("/:id", user.getUser);
 router.post("/", user.addUser);
 router.put("/:id", user.editUser);

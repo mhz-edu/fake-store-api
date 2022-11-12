@@ -31,24 +31,10 @@ module.exports.getUser = (req, res) => {
 };
 
 module.exports.getUserInfo = async (req, res) => {
-  try {
-    const token = req.header("Authorization").replace("Bearer ", "");
-    const decoded = jwt.verify(token, "secret_key");
-    const user = await User.findOne({
-      _id: decoded._id,
-      // "tokens.token": token,
-    });
-    // If user not found, throw error
-    if (!user) {
-      throw new Error({ error: "No user found" });
-    }
-    const userId = decoded._id;
+  const userId = req.userData._id;
 
-    const userInfo = await User.findById(userId).select("-_id -__v");
-    res.json(userInfo);
-  } catch (err) {
-    res.status(401).json(err);
-  }
+  const userInfo = await User.findById(userId).select("-_id -__v");
+  res.json(userInfo);
 };
 
 module.exports.addUser = async (req, res) => {
@@ -64,7 +50,7 @@ module.exports.addUser = async (req, res) => {
       .countDocuments(function (err, count) {
         userCount = count;
       })
-      .then(() => { 
+      .then(() => {
         const user = new User({
           id: userCount + 1,
           email: req.body.email,
