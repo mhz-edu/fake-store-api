@@ -1,19 +1,16 @@
-const Cart = require("../model/cart");
-const jwt = require("jsonwebtoken");
-const User = require("../model/user");
+const {
+  deleteCartById,
+  editCartById,
+  getUserCart,
+  createCartForUser,
+} = require("../service/cart");
 
 module.exports.getAllCarts = (req, res) => {
   const limit = Number(req.query.limit) || 0;
   const sort = req.query.sort == "desc" ? -1 : 1;
   const startDate = req.query.startdate || new Date("1970-1-1");
   const endDate = req.query.enddate || new Date();
-
-  Cart.find({
-    date: { $gte: new Date(startDate), $lt: new Date(endDate) },
-  })
-    .select("-_id -products._id")
-    .limit(limit)
-    .sort({ id: sort })
+  getCarts({ limit, sort, startDate, endDate })
     .then((carts) => {
       res.json(carts);
     })
@@ -22,10 +19,7 @@ module.exports.getAllCarts = (req, res) => {
 
 module.exports.getCartsbyUserid = async (req, res) => {
   const userId = req.userData._id;
-  const startDate = req.query.startdate || new Date("1970-1-1");
-  const endDate = req.query.enddate || new Date();
-  Cart.find({ userId })
-    .select("-_id -products._id -userId")
+  getUserCart({ userId })
     .then((carts) => {
       res.json(carts);
     })
@@ -34,22 +28,7 @@ module.exports.getCartsbyUserid = async (req, res) => {
 
 module.exports.getSingleCart = async (req, res) => {
   const userId = req.userData._id;
-  const cart = await Cart.aggregate()
-    .lookup({
-      from: "products",
-      localField: "products.productId",
-      foreignField: "id",
-      as: "lineItems",
-    })
-    .match({ userId })
-    .project({
-      __v: 0,
-      _id: 0,
-      "products._id": 0,
-      "lineItems._id": 0,
-      "lineItems.__v": 0,
-    })
-    .catch((err) => console.log(err));
+  const cart = getCartItems({ userId }).catch((err) => console.log(err));
 
   res.json(cart);
 };
@@ -64,12 +43,9 @@ module.exports.addCart = async (req, res) => {
       message: "data is undefined",
     });
   } else {
-    let cartCount = 0;
-    Cart.find({
-      userId,
-    })
+    getUserCart({ userId })
       .then((carts) => {
-        const cart = {
+        const newCart = {
           id: carts.length + 1,
           userId: userId,
           date: date,
@@ -79,9 +55,7 @@ module.exports.addCart = async (req, res) => {
           res.json([...carts].pop());
           return;
         }
-        const cartInstance = new Cart(cart);
-        cartInstance
-          .save()
+        createCartForUser({ cart: newCart })
           .then((cart) => {
             res.json(cart);
           })
@@ -100,12 +74,7 @@ module.exports.editCart = async (req, res) => {
       message: "something went wrong! check your sent data",
     });
   } else {
-    Cart.findOneAndUpdate(
-      { userId },
-      { products: req.body.products },
-      { new: true }
-    )
-
+    editCartById({ userId, products: req.body.products })
       .then((cart) => {
         res.json(cart);
       })
@@ -115,7 +84,7 @@ module.exports.editCart = async (req, res) => {
 
 module.exports.deleteCart = async (req, res) => {
   const userId = req.userData._id;
-  Cart.findOneAndDelete({ userId }).then(() => {
+  deleteCartById({ userId }).then(() => {
     res.json("Cart Deleted!");
   });
 };
