@@ -1,16 +1,19 @@
 const User = require("../model/user");
-const jwt = require("jsonwebtoken");
+const {
+  getUsers,
+  findCurrentUser,
+  findOneUser,
+  createNewUser,
+  countUsers,
+  updateUserById,
+  deleteUserById,
+} = require("../service/user");
 
 module.exports.getAllUser = (req, res) => {
   const limit = Number(req.query.limit) || 0;
   const sort = req.query.sort == "desc" ? -1 : 1;
 
-  User.find()
-    .select(["-_id"])
-    .limit(limit)
-    .sort({
-      id: sort,
-    })
+  getUsers({ limit, sort })
     .then((users) => {
       res.json(users);
     })
@@ -20,10 +23,7 @@ module.exports.getAllUser = (req, res) => {
 module.exports.getUser = (req, res) => {
   const id = req.params.id;
 
-  User.findOne({
-    id,
-  })
-    .select(["-_id"])
+  findOneUser({ id })
     .then((user) => {
       res.json(user);
     })
@@ -33,7 +33,7 @@ module.exports.getUser = (req, res) => {
 module.exports.getUserInfo = async (req, res) => {
   const userId = req.userData._id;
 
-  const userInfo = await User.findById(userId).select("-_id -__v");
+  const userInfo = await findCurrentUser({ userId });
   res.json(userInfo);
 };
 
@@ -46,12 +46,10 @@ module.exports.addUser = async (req, res) => {
   } else {
     let userCount = 0;
 
-    User.find()
-      .countDocuments(function (err, count) {
+    countUsers()
+      .then((count) => {
         userCount = count;
-      })
-      .then(() => {
-        const user = new User({
+        const newUser = {
           id: userCount + 1,
           email: req.body.email,
           username: req.body.username,
@@ -72,17 +70,16 @@ module.exports.addUser = async (req, res) => {
           },
           phone: req.body.phone,
           isDeleted: false,
-        });
-        user
-          .save()
-          .then((user) => {
-            res.json(user);
-          })
-          .catch((error) => {
-            console.log(error);
-            res.status(400);
-            res.json(error);
-          });
+        };
+        return createNewUser(newUser);
+      })
+      .then((user) => {
+        res.json(user);
+      })
+      .catch((error) => {
+        console.log(error);
+        res.status(400);
+        res.json(error);
       });
 
     //res.json({id:User.find().count()+1,...req.body})
@@ -96,29 +93,34 @@ module.exports.editUser = (req, res) => {
       message: "something went wrong! check your sent data",
     });
   } else {
-    User.findOneAndUpdate(
-      { id: req.params.id },
-      {
-        email: req.body.email,
-        username: req.body.username,
-        password: req.body.password,
-        name: {
-          firstname: req.body.name?.firstname,
-          lastname: req.body.name?.lastname,
+    const updatedUser = {
+      email: req.body.email,
+      username: req.body.username,
+      password: req.body.password,
+      name: {
+        firstname: req.body.name?.firstname,
+        lastname: req.body.name?.lastname,
+      },
+      address: {
+        city: req.body.address?.city,
+        street: req.body.address?.street,
+        number: req.body.number,
+        zipcode: req.body.zipcode,
+        geolocation: {
+          lat: req.body.address?.geolocation?.lat,
+          long: req.body.address?.geolocation?.long,
         },
-        address: {
-          city: req.body.address?.city ?? null,
-          street: req.body.address?.street ?? null,
-          number: req.body.number,
-          zipcode: req.body.zipcode,
-          geolocation: {
-            lat: req.body.address?.geolocation?.lat ?? null,
-            long: req.body.address?.geolocation?.long ?? null,
-          },
-        },
-        phone: req.body.phone,
-      }
-    );
+      },
+      phone: req.body.phone,
+    };
+    updateUserById({ id: req.params.id, updatedUser })
+      .then((user) => {
+        res.json(user);
+      })
+      .catch((err) => {
+        console.log(err);
+        res.status(400).json(err);
+      });
   }
 };
 
@@ -129,8 +131,7 @@ module.exports.deleteUser = (req, res) => {
       message: "cart id should be provided",
     });
   } else {
-    User.findOneAndUpdate({ id: req.params.id }, { isDeleted: true })
-      .select(["-_id"])
+    deleteUserById({ id: req.params.id })
       .then((user) => {
         res.json(user);
       })
