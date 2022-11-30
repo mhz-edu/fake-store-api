@@ -3,6 +3,7 @@ const {
   editCartById,
   getUserCart,
   createCartForUser,
+  getCartItems,
 } = require("../service/cart");
 
 module.exports.getAllCarts = (req, res) => {
@@ -28,7 +29,7 @@ module.exports.getCartsbyUserid = async (req, res) => {
 
 module.exports.getSingleCart = async (req, res) => {
   const userId = req.userData._id;
-  const cart = getCartItems({ userId }).catch((err) => console.log(err));
+  const cart = await getCartItems({ userId }).catch((err) => console.log(err));
 
   res.json(cart);
 };
