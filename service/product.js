@@ -23,9 +23,13 @@ module.exports.findOneProduct = ({ id }) => {
 };
 module.exports.findCategories = () => Product.distinct("category");
 module.exports.findProductCount = () => {
-  return Product.find().countDocuments(function (err, count) {
-    return count;
-  });
+  return Product.find()
+    .find()
+    .sort({ id: -1 })
+    .limit(1)
+    .then((fields) => {
+      return fields[0].id;
+    });
 };
 module.exports.createNewProduct = (product) => {
   const productInstance = new Product(product);
