@@ -6,6 +6,7 @@ const {
   findProductCount,
   createNewProduct,
   editProductById,
+  deleteProductById,
 } = require("../service/product");
 
 module.exports.getAllProducts = (req, res) => {
