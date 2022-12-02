@@ -5,6 +5,7 @@ const {
   findCategories,
   findProductCount,
   createNewProduct,
+  editProductById,
 } = require("../service/product");
 
 module.exports.getAllProducts = (req, res) => {
@@ -104,7 +105,9 @@ module.exports.deleteProduct = async (req, res) => {
       message: "cart id should be provided",
     });
   } else {
-    const product = await deleteProductById({ id }).catch((err) => console.log(err));
+    const product = await deleteProductById({ id }).catch((err) =>
+      console.log(err)
+    );
     if (product == null) {
       res.status(400);
       res.json({
