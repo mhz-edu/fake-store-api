@@ -91,7 +91,7 @@ module.exports.editProduct = (req, res) => {
     category: req.body.category,
   };
 
-  editProductById(id, updatedProduct)
+  editProductById(parseInt(req.params.id), updatedProduct)
     .then((product) => res.json(product))
     .catch((err) => {
       console.log(err);
@@ -106,8 +106,8 @@ module.exports.deleteProduct = async (req, res) => {
       message: "cart id should be provided",
     });
   } else {
-    const product = await deleteProductById({ id }).catch((err) =>
-      console.log(err)
+    const product = await deleteProductById({ id: req.params.id }).catch(
+      (err) => console.log(err)
     );
     if (product == null) {
       res.status(400);

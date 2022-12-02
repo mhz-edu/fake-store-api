@@ -45,9 +45,9 @@ module.exports.editProductById = (id, updatedProduct) => {
     }
   );
 };
-module.exports.deleteProductById = (id) => {
-  Product.findOneAndDelete({
-    id: req.params.id,
+module.exports.deleteProductById = ({ id }) => {
+  return Product.findOneAndDelete({
+    id: id,
   }).then((product) => {
     if (product == null) {
       throw { code: 400, status: "error", message: "cannot find product" };
