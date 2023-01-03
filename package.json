@@ -6,7 +6,8 @@
   "scripts": {
     "test": "jest",
     "dev": "NODE_ENV='dev' nodemon server.js",
-    "start": "NODE_ENV='prod' node server.js"
+    "start": "NODE_ENV='prod' node server.js",
+    "seed": "node ./seeder/seeder.js"
   },
   "author": "",
   "license": "ISC",
