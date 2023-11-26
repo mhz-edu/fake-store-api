@@ -5,3 +5,5 @@
 docker-compose*.yml
 node_modules
 *.md
+old
+mongo_data

@@ -1,4 +1,4 @@
-FROM node:17
+FROM node:20
 
 WORKDIR /usr/src/app
 
@@ -8,6 +8,8 @@ RUN npm install
 
 COPY . .
 
-EXPOSE $PORT
+RUN npm run build
 
-CMD [ "node", "server.js" ]
+EXPOSE 3000
+
+CMD [ "npm", "run", "start:prod" ]
