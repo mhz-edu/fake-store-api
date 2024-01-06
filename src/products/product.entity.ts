@@ -1,15 +1,11 @@
-import { CartToProduct } from '../cart/cart-product.entity';
-import {
-  BaseEntity,
-  Column,
-  Entity,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { BaseEntity, Column, Entity, ObjectId, ObjectIdColumn } from 'typeorm';
 
 @Entity()
 export class Product extends BaseEntity {
-  @PrimaryGeneratedColumn()
+  @ObjectIdColumn()
+  _id: ObjectId;
+
+  @Column()
   id: number;
 
   @Column()
@@ -27,6 +23,16 @@ export class Product extends BaseEntity {
   @Column({ nullable: true })
   category: string;
 
-  @OneToMany(() => CartToProduct, (cartToProduct) => cartToProduct.product)
-  cartToProduct: CartToProduct[];
+  constructor(props?) {
+    super();
+    if (props) {
+      const { id, title, price, description, image, category } = props;
+      this.id = id;
+      this.title = title;
+      this.price = price;
+      this.description = description;
+      this.image = image;
+      this.category = category;
+    }
+  }
 }

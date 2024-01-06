@@ -1,4 +1,9 @@
-import { DataSource, Repository } from 'typeorm';
+import {
+  DataSource,
+  Repository,
+  MongoRepository,
+  FindManyOptions,
+} from 'typeorm';
 import { User } from './user.entity';
 import {
   Injectable,
@@ -13,7 +18,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
-export class UserRepository extends Repository<User> {
+export class UserRepository extends MongoRepository<User> {
   private logger = new Logger('UserRepository');
 
   constructor(private dataSource: DataSource) {
@@ -54,18 +59,18 @@ export class UserRepository extends Repository<User> {
 
   async getUsers(queryOptions?: UsersQueryDto): Promise<User[]> {
     const { limit, sort } = queryOptions;
-    const query = this.createQueryBuilder('user');
-
+    const query = `get users ${JSON.stringify(queryOptions)}`;
+    const options: FindManyOptions = {};
     if (limit) {
-      query.limit(limit);
+      options.take = limit;
     }
 
     if (sort) {
-      query.orderBy('user.username', sort.toUpperCase() as 'ASC' | 'DESC');
+      options.order = { usename: sort };
     }
 
     try {
-      return query.getMany();
+      return await this.find(options);
     } catch (error) {
       this.logger.error(
         `Error getting users from DB query ${query}`,
@@ -78,7 +83,10 @@ export class UserRepository extends Repository<User> {
   async createUser(createUserDto: CreateUserDto): Promise<User> {
     const { username, name, avatar, phone, address } = createUserDto;
 
+    const maxId = await this.count();
+
     const user = new User();
+    user.id = maxId + 1;
     user.username = username;
     user.name = name;
     user.avatar = avatar;
@@ -91,6 +99,7 @@ export class UserRepository extends Repository<User> {
 
   async updateUser(user: User, updateUserDto: UpdateUserDto): Promise<User> {
     const { name, avatar, phone, address } = updateUserDto;
+    console.log(user);
     user.name = name;
     user.avatar = avatar;
     user.phone = phone;
@@ -100,12 +109,10 @@ export class UserRepository extends Repository<User> {
     return user;
   }
 
-  async deleteUser(user: User) {
-    const query = this.createQueryBuilder('user');
-    query.delete().from(User).where('id = :id', { id: user.id });
-
+  async deleteUser(id: number) {
+    const query = 'delete user';
     try {
-      return query.execute();
+      return await this.findOneAndDelete({ where: { id } });
     } catch (error) {
       this.logger.error(
         `Error getting users from DB query ${query}`,

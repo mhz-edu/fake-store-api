@@ -31,7 +31,6 @@ describe('Carts (e2e)', () => {
     console.log(response.body);
     expect(response.body).not.toEqual({});
     expect(response.body).toHaveProperty('userId');
-    expect(response.body).not.toHaveProperty('_Id');
   });
 
   it('get carts in a date range and limit and sort', async () => {

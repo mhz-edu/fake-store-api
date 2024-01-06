@@ -2,17 +2,19 @@ import {
   BaseEntity,
   Column,
   Entity,
-  OneToMany,
-  PrimaryGeneratedColumn,
+  ObjectId,
+  ObjectIdColumn,
   Unique,
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { Cart } from '../cart/cart.entity';
 
 @Entity()
 @Unique(['username'])
 export class User extends BaseEntity {
-  @PrimaryGeneratedColumn()
+  @ObjectIdColumn()
+  _id: ObjectId;
+
+  @Column()
   id: number;
 
   @Column()
@@ -36,13 +38,37 @@ export class User extends BaseEntity {
   @Column({ type: 'json', nullable: true })
   address: object;
 
-  @OneToMany(() => Cart, (cart) => cart.user, {
-    eager: false,
-  })
-  carts: Cart[];
+  @Column()
+  carts: number[];
 
   async validatePassword(password: string): Promise<boolean> {
     const hash = await bcrypt.hash(password, this.salt);
     return hash === this.password;
+  }
+
+  constructor(props?) {
+    super();
+    if (props) {
+      const {
+        username,
+        avatar,
+        phone,
+        name,
+        address,
+        password,
+        salt,
+        id,
+        carts,
+      } = props;
+      this.username = username;
+      this.avatar = avatar;
+      this.phone = phone;
+      this.name = name;
+      this.address = address;
+      this.id = id;
+      this.password = password;
+      this.salt = salt;
+      this.carts = carts;
+    }
   }
 }

@@ -24,6 +24,12 @@ export class UserController {
   constructor(private userService: UserService) {}
 
   @Get()
+  @UsePipes(
+    new ValidationPipe({
+      skipMissingProperties: true,
+      transform: true,
+    }),
+  )
   getAllUsers(
     @Query('limit') limit?: number,
     @Query('sort') sort?: string,

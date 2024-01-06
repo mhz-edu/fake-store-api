@@ -36,6 +36,9 @@ export class CartController {
   }
 
   @Get()
+  @UsePipes(
+    new ValidationPipe({ skipMissingProperties: true, transform: true }),
+  )
   getCarts(
     @Query('limit') limit?: number,
     @Query('sort') sort?: string,

@@ -5,14 +5,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Cart } from './cart.entity';
-import { DataSource, Repository } from 'typeorm';
+import {
+  DataSource,
+  FindManyOptions,
+  MongoRepository,
+  Repository,
+} from 'typeorm';
 import { CreateCartDto } from './dto/create-cart.dto';
-import { CartToProduct } from './cart-product.entity';
+// import { CartToProduct } from './cart-product.entity';
 import { CartsQueryDto } from './dto/query.dto';
 import { EditCartDto } from './dto/edit-cart.dto';
+import { Product } from '../products/product.entity';
+import { User } from '../user/user.entity';
 
 @Injectable()
-export class CartRepository extends Repository<Cart> {
+export class CartRepository extends MongoRepository<Cart> {
   private logger = new Logger('CartRepository');
 
   constructor(private dataSource: DataSource) {
@@ -22,144 +29,91 @@ export class CartRepository extends Repository<Cart> {
   async createCart(createCartDto: CreateCartDto) {
     const { userId, products } = createCartDto;
 
-    const runner = this.dataSource.createQueryRunner();
-
-    await runner.connect();
-
-    await runner.startTransaction();
-
-    const createCartQuery = async () => {
-      const q = this.createQueryBuilder('cart', runner)
-        .insert()
-        .values({
-          user: { id: userId },
-        });
-      return (await q.execute()).identifiers[0].id;
-    };
-
-    const addProductsToCartQuery = async (cartId: number) => {
-      const q = this.dataSource
-        .createQueryBuilder(runner)
-        .insert()
-        .into(CartToProduct)
-        .values(products.map((product) => ({ cartId, ...product })));
-
-      await q.execute();
-    };
+    let user: User;
 
     try {
-      const cartId = await createCartQuery();
-      await addProductsToCartQuery(cartId);
-      await runner.commitTransaction();
+      user = await this.dataSource.mongoManager.findOne(User, {
+        where: { id: userId },
+      });
 
-      return this.findOne({ where: { id: cartId } });
-    } catch (err) {
-      await runner.rollbackTransaction();
-      this.logger.error(JSON.stringify(err));
-      if (err.code === '23503') {
-        throw new NotFoundException(err.detail);
-      }
+      await this.dataSource.mongoManager.find(Product, {
+        where: { id: { $in: products.map((prod) => prod.productId) } },
+      });
+    } catch (error) {
+      throw new NotFoundException();
+    }
+
+    try {
+      const maxId = await this.count();
+
+      const cart = new Cart({
+        id: maxId + 1,
+        userId: user.id,
+        products,
+      });
+      await cart.save();
+
+      user.carts.push(cart.id);
+      await user.save();
+      return cart;
+    } catch (error) {
+      console.log(error);
       throw new InternalServerErrorException();
-    } finally {
-      await runner.release();
     }
   }
 
   async editCart(cartId: number, editCartDto: EditCartDto) {
     const { userId, date, products } = editCartDto;
 
-    const runner = this.dataSource.createQueryRunner();
-
-    await runner.connect();
-
-    await runner.startTransaction();
-
-    const updateCartQuery = async () => {
-      const q = this.createQueryBuilder('cart', runner)
-        .update()
-        .set({
-          user: { id: userId },
-          date: new Date(date),
-        })
-        .where('id = :cartId', { cartId });
-
-      await q.execute();
-    };
-
-    const updateProductsInCartQuery = async () => {
-      const q = this.dataSource
-        .createQueryBuilder(runner)
-        .insert()
-        .into(CartToProduct)
-        .values(products.map((product) => ({ cartId, ...product })))
-        .orUpdate(['quantity'], ['cartId', 'productId'], {
-          skipUpdateIfNoValuesChanged: true,
-        });
-
-      await q.execute();
-    };
-
     try {
-      await updateCartQuery();
-      await updateProductsInCartQuery();
-      await runner.commitTransaction();
+      const cart = await this.findOne({ where: { id: cartId } });
 
-      return this.findOne({ where: { id: cartId } });
-    } catch (err) {
-      await runner.rollbackTransaction();
-      this.logger.error(JSON.stringify(err));
-      if (err.code === '23503') {
-        throw new NotFoundException(err.detail);
-      }
-      throw new InternalServerErrorException();
-    } finally {
-      await runner.release();
+      const user = await this.dataSource.mongoManager.findOne(User, {
+        where: { id: userId },
+      });
+
+      const prods = await this.dataSource.mongoManager.find(Product, {
+        where: { id: { $in: products.map((prod) => prod.productId) } },
+      });
+
+      cart.userId = user.id;
+      cart.products = products;
+
+      return await cart.save();
+    } catch (error) {
+      throw new NotFoundException();
     }
   }
 
   async getCarts(userId?: number, queryOptions?: CartsQueryDto) {
     const { limit, sort, startdate, enddate } = queryOptions;
 
-    const query = this.createQueryBuilder('cart')
-      .select([
-        'cart.id',
-        'cart.date',
-        'user.id',
-        'cartToProduct.productId',
-        'cartToProduct.quantity',
-      ])
-      .leftJoin('cart.user', 'user')
-      .leftJoin('cart.cartToProduct', 'cartToProduct')
-      .where((qb) => {
-        const subQuery = qb.subQuery().select('cart.id').from(Cart, 'cart');
+    const options: FindManyOptions = {};
 
-        if (userId) {
-          subQuery.andWhere('cart.userId = :userId');
-        }
+    if (userId) {
+      options.where = { userId, ...options.where };
+    }
 
-        if (limit) {
-          subQuery.limit(limit);
-        }
+    if (limit) {
+      options.take = limit;
+    }
 
-        if (sort) {
-          subQuery.orderBy('cart.id', sort.toUpperCase() as 'ASC' | 'DESC');
-        }
+    if (sort) {
+      options.order = { id: sort };
+    }
 
-        if (startdate) {
-          subQuery.andWhere('cart.date >= :startdate');
-        }
+    if (startdate) {
+      options.where = { date: { $gte: new Date(startdate) }, ...options.where };
+    }
 
-        if (enddate) {
-          subQuery.andWhere('cart.date <= :enddate');
-        }
-
-        return 'cart.id IN ' + subQuery.getQuery();
-      })
-      .setParameters({ userId, startdate, enddate });
+    if (enddate) {
+      options.where = { date: { $lte: new Date(enddate) }, ...options.where };
+    }
 
     try {
-      this.logger.verbose(query.getQuery());
-      return query.getMany();
+      console.log(`get options ${JSON.stringify(options)}`);
+
+      return await this.find(options);
     } catch (error) {
       this.logger.error('Error getting products from DB', error.stack);
       throw new InternalServerErrorException();
@@ -167,11 +121,9 @@ export class CartRepository extends Repository<Cart> {
   }
 
   async deleteCart(cartId: number) {
-    const query = this.createQueryBuilder('cart');
-    query.delete().from(Cart).where('id = :id', { id: cartId });
-
+    const query = 'delete entity';
     try {
-      return query.execute();
+      return this.deleteOne({ where: { id: cartId } });
     } catch (error) {
       this.logger.error(
         `Error getting users from DB query ${query}`,

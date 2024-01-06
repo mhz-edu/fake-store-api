@@ -24,6 +24,9 @@ export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
   @Get()
+  @UsePipes(
+    new ValidationPipe({ skipMissingProperties: true, transform: true }),
+  )
   getAllProducts(
     @Query('limit') limit?: number,
     @Query('sort') sort?: string,

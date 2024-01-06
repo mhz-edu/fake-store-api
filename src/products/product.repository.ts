@@ -1,4 +1,9 @@
-import { DataSource, Repository } from 'typeorm';
+import {
+  DataSource,
+  FindManyOptions,
+  MongoRepository,
+  Repository,
+} from 'typeorm';
 import { Product } from './product.entity';
 import {
   Injectable,
@@ -10,7 +15,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsQueryDto } from './dto/query.dto';
 
 @Injectable()
-export class ProductRepository extends Repository<Product> {
+export class ProductRepository extends MongoRepository<Product> {
   private logger = new Logger('ProductRepository');
 
   constructor(private dataSource: DataSource) {
@@ -22,22 +27,23 @@ export class ProductRepository extends Repository<Product> {
     category?: string,
   ): Promise<Product[]> {
     const { limit, sort } = queryOptions;
-    const query = this.createQueryBuilder('product');
+    const query = 'get products';
+    const options: FindManyOptions = {};
 
     if (category) {
-      query.andWhere('product.category = :category', { category });
+      options.where = { category };
     }
 
     if (limit) {
-      query.limit(limit);
+      options.take = limit;
     }
 
     if (sort) {
-      query.orderBy('product.title', sort.toUpperCase() as 'ASC' | 'DESC');
+      options.order = { title: sort };
     }
 
     try {
-      return query.getMany();
+      return this.find(options);
     } catch (error) {
       this.logger.error(
         `Error getting products from DB query ${query}, category ${category}`,
@@ -50,7 +56,10 @@ export class ProductRepository extends Repository<Product> {
   async createProduct(createProductDto: CreateProductDto): Promise<Product> {
     const { title, price, description, category, image } = createProductDto;
 
+    const maxId = await this.count();
+
     const product = new Product();
+    product.id = maxId + 1;
     product.title = title;
     product.price = price;
     product.description = description;

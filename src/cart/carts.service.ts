@@ -29,9 +29,6 @@ export class CartService {
   }
 
   async deleteCart(cartId: number) {
-    const result = await this.cartRepository.deleteCart(cartId);
-    if (result.affected === 0) {
-      throw new NotFoundException();
-    }
+    return await this.cartRepository.deleteCart(cartId);
   }
 }

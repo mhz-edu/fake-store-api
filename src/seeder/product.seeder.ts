@@ -6,6 +6,9 @@ import { productData } from './products';
 export class ProductSeeder implements Seeder {
   public async run(dataSource: DataSource) {
     console.log('Running product seeder');
-    await dataSource.createEntityManager().insert(Product, productData);
+    await dataSource.mongoManager.insert(
+      Product,
+      productData.map((product, index) => ({ id: index, ...product })),
+    );
   }
 }
