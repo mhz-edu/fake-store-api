@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fake-store-api.fullname" . }}
+  labels:
+    run: fake-store
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    run: fake-store
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http

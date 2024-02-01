@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fake-store-api.fullname" . }}
+spec:
+  selector:
+    matchLabels:
+      run: fake-store
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        run: fake-store
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          env:
+          - name: DATABASE_URL
+            value: "mongodb://{{ .Values.mongodb.auth.rootUser }}:{{ .Values.mongodb.auth.rootPassword }}@test-mongodb.default:27017/fake_store_test?authSource=admin"
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+         
